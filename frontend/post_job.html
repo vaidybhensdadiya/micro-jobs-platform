@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Post a Job - MicroJobs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class', theme: { extend: { colors: { primary: '#6366f1', darkBg: '#0f172a', darkCard: '#1e293b' } } } }
+    </script>
+    <style>
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+
+<body
+    class="bg-darkBg text-white min-h-screen bg-[conic-gradient(at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-indigo-950 to-slate-900">
+    <script src="script.js"></script>
+    <script>
+        if (!checkAuth() || localStorage.getItem('user_role') !== 'PROVIDER') {
+            window.location.href = 'dashboard.html';
+        }
+    </script>
+
+    <!-- Navbar -->
+    <nav class="glass sticky top-0 z-50 px-6 py-4 flex justify-between items-center shadow-lg">
+        <a href="dashboard.html"
+            class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-teal-400">MicroJobs</a>
+        <div class="flex items-center gap-6">
+            <a href="dashboard.html" class="text-gray-300 font-medium hover:text-white transition-colors">Dashboard</a>
+            <a href="jobs.html" class="text-gray-300 font-medium hover:text-white transition-colors">Browse Jobs</a>
+            <a href="post_job.html" class="text-primary font-medium hover:text-white transition-colors ml-4">Post a
+                Job</a>
+            <button onclick="logout()"
+                class="px-4 py-2 border border-red-500 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all text-sm font-medium">Logout</button>
+        </div>
+    </nav>
+
+    <main class="max-w-3xl mx-auto p-6 mt-8">
+        <div class="glass p-10 rounded-3xl shadow-xl border border-slate-700/50">
+            <h1 class="text-3xl font-bold mb-2 text-white">Post a New Job</h1>
+            <p class="text-gray-400 mb-8 border-b border-slate-700/50 pb-6">Describe the task, set a budget, and find
+                the right student.</p>
+
+            <form id="postJobForm" class="space-y-6">
+                <div id="errorMsg"
+                    class="hidden bg-red-500/10 border border-red-500 text-red-500 p-4 rounded-xl text-sm mb-4"></div>
+                <div id="successMsg"
+                    class="hidden bg-green-500/10 border border-green-500 text-green-500 p-4 rounded-xl text-sm mb-4">
+                    Job posted successfully! Redirecting...</div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Job Title</label>
+                    <input type="text" id="title" required
+                        class="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-white placeholder-gray-500 shadow-inner"
+                        placeholder="e.g. Help fix a Python script">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                    <textarea id="description" required rows="5"
+                        class="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-white placeholder-gray-500 shadow-inner"
+                        placeholder="Describe the task requirements..."></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Budget ($)</label>
+                        <input type="number" id="budget" min="1" step="0.5" required
+                            class="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-white placeholder-gray-500 shadow-inner"
+                            placeholder="50.00">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Deadline</label>
+                        <input type="date" id="deadline" required
+                            class="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-600 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-white shadow-inner"
+                            style="color-scheme: dark;">
+                    </div>
+                </div>
+
+                <div class="pt-6 mt-8 border-t border-slate-700/50 flex items-center justify-end gap-4">
+                    <a href="dashboard.html"
+                        class="px-6 py-3 text-gray-400 hover:text-white transition-colors font-medium">Cancel</a>
+                    <button type="submit"
+                        class="px-8 py-3 bg-primary hover:bg-indigo-500 rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(99,102,241,0.4)]">Publish
+                        Job</button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        // Set min date for deadline to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('deadline').setAttribute('min', today);
+
+        document.getElementById('postJobForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = 'Publishing...';
+
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            const budget = parseFloat(document.getElementById('budget').value);
+            const deadline = document.getElementById('deadline').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/jobs`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ title, description, budget, deadline })
+                });
+
+                const data = await res.json();
+                if (!res.ok) handleApiError(res, data);
+
+                document.getElementById('errorMsg').classList.add('hidden');
+                document.getElementById('successMsg').classList.remove('hidden');
+
+                setTimeout(() => {
+                    window.location.href = 'jobs.html';
+                }, 1500);
+
+            } catch (err) {
+                showFormError(err.message, 'errorMsg');
+                btn.disabled = false;
+                btn.innerHTML = 'Publish Job';
+            }
+        });
+    </script>
+</body>
+
+</html>
